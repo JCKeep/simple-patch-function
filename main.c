@@ -23,12 +23,22 @@ int foo(int a)
 
 int main(int argc, char *argv[])
 {
+        int err;
         unsigned char unpatch_code[PATCH_SIZE];
-        patch_function(foo, foo_v1, unpatch_code);
+        
+        err = patch_function(foo, foo_v1, unpatch_code);
+        if (err) {
+                fprintf(stderr, "Failed to patch function foo\n");
+                return err;
+        }
 
         printf("%d\n", foo(100));
 
-        unpatch_function(foo, unpatch_code);
+        err = unpatch_function(foo, unpatch_code);
+        if (err) {
+                fprintf(stderr, "Failed to unpatch function foo\n");
+                return err;
+        }
 
         printf("%d\n", foo(100));
 

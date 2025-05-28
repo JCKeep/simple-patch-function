@@ -1,8 +1,12 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <unistd.h>
 #include <sys/mman.h>
+
+#define SZ_32M  0x02000000
+#define SZ_128M 0x08000000
 
 #if defined(__x86_64__)
 #define PATCH_SIZE 5
@@ -34,6 +38,13 @@ static inline void *page_align(void *addr)
         return (void *)((unsigned long)addr & ~(getpagesize() - 1));
 }
 
+static inline bool offset_in_range(unsigned long pc, unsigned long addr, unsigned long range)
+{
+        long offset = addr - pc;
+
+        return (offset >= -range && offset < range);
+}
+
 static inline unsigned int jmp_offset(void *function, const void *new_function)
 {
 #if defined(__x86_64__)
@@ -62,6 +73,16 @@ int patch_function(void *function, const void *new_function, unsigned char unpat
         int err;
         union jmp_patch_code patch_code;
         unsigned char *patch = (void *)function;
+        unsigned long offset_limits = -1UL;
+
+#if defined(__arm__)
+        offset_limits = SZ_32M;
+#elif defined(__aarch64__)
+        offset_limits = SZ_128M;
+#endif
+
+        if (!offset_in_range((unsigned long)function, (unsigned long)new_function, offset_limits))
+                return -1;
 
         err = mprotect(page_align(function), getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC);
         if (err < 0) {
